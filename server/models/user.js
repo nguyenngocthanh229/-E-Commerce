@@ -18,7 +18,6 @@ var userSchema = new mongoose.Schema({
     mobile: {
         type: String,
         require: true,
-        unique: true,
     },
     password: {
         type: String,
@@ -49,12 +48,20 @@ var userSchema = new mongoose.Schema({
 });
 
 userSchema.pre('save', async function(next){
-    if(this.isModified('password')){
+    try {
+        const salt = await bcrypt.genSalt(10)
+        const hashedPassword = await bcrypt.hash(this.password, salt)
+        this.password = hashedPassword
         next()
+    } catch (error) {
+        next(error)
     }
-    const salt = bcrypt.genSaltSync(10)
-    this.password = await bcrypt.hash(this.password, salt)
 })
+userSchema.methods = {
+    isCorrectPassword: async function (password) {
+        return await bcrypt.compare(password, this.password)
+    }
+}
 
 //Export the model
 module.exports = mongoose.model('User', userSchema);
