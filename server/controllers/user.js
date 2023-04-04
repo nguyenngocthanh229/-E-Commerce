@@ -3,7 +3,8 @@ const asyncHandler = require('express-async-handler')
 const {generateAccessToken, generateRefreshToken} = require('../middlewares/jwt')
 const { response } = require('express')
 const jwt = require('jsonwebtoken')
-
+const sendMail = require('../ultils/sendMail')
+const crypto = require('crypto')
 
 const register = asyncHandler(async(req, res) => { 
       const {email, password, firstname, lastname} = req.body
@@ -85,10 +86,50 @@ const logout = asyncHandler(async(req, res) => {
    })
 })
 
+const forgotPassword = asyncHandler(async (req, res) => { 
+    const {email} = req.query
+    if (!email) throw new Error('Missing email')
+    const user = await User.findOne({email})
+    if (!user) throw new Error('User not found')
+    const resetToken = user.createPasswordChangedToken()
+    await user.save()
+    
+    const html = `Please click in the link below to change your password.This link will expire after 3 days from now. <a href=${process.env.URL_SERVER}/api/user/reset-password/${resetToken}>Click here</a>`
+    
+    const data = {
+        email,
+        html
+    }
+    const rs = await sendMail(data)
+    return res.status(200).json({
+        success: true,
+        rs
+    })
+})
+
+const resetPassword = asyncHandler(async (req,res) => { 
+    const {password, token} = req.body
+    if (!password || !token) throw new Error('Missing inputs')
+    const passwordResetToken = crypto.createHash('sha256').update(token).digest('hex')
+    const user = await User.findOne({passwordResetToken, passwordResetExpires: {$gt: Date.now()}})
+    if (!user) throw new Error('invalid reset token')
+    user.password = password
+    user.passwordResetToken = undefined
+    user.passwordChangedAt = Date.now()
+    user.passwordResetExpires = undefined
+    await user.save()
+    return res.status(200).json({
+        success: user ? true: false,
+        mes: user? 'Update password': 'Something went wrong'
+    })
+})
+
 module.exports = {
     register,
     login,
     getCurrent,
     refreshAccessToken,
-    logout
+    logout,
+    forgotPassword,
+    resetPassword
 }
