@@ -11,6 +11,7 @@ const createProduct = asyncHandler(async(req, res) => {
         createdProduct: newProduct ? newProduct : 'Cannot created new product'
     })
 })
+// Filtering, sorting & pagination
 const getProduct = asyncHandler(async(req, res) => { 
     const { pid } = req.params
     const product = await Product.findById(pid)
@@ -27,13 +28,35 @@ const getProducts = asyncHandler(async(req, res) => {
 
     // Format lại các operatiors cho đúng cú pháp mongoose
     let queryString = JSON.stringify(queries)
-    queryString.replace(/\b(gte|gt|lt|lte)\b/g, matchedEl => `$${matchedEl}`)
+   queryString = queryString.replace(/\b(gte|gt|lt|lte)\b/g, matchedEl => `$${matchedEl}`)
     const formatedQueries = JSON.parse(queryString)
 
-     
-    if (queries?.title) formatedQueries.title = {$regex: queries.title, $option: 'i'}
+    // Filtering
+    if (queries?.title) formatedQueries.title = { $regex: queries.title, $options: 'i' }
     let queryCommand = Product.find(formatedQueries)
 
+    // Sorting
+
+
+
+
+    if (req.query.sort) {
+        const sortBy = req.query.sort.split(',').join(' ')
+        queryCommand = queryCommand.sort(sortBy)
+    }
+    
+
+    // Fields limiting
+    if (req.query.fields) {
+        const fields = req.query.fields.split(',').join(' ')
+        queryCommand = queryCommand.select(fields)
+    }
+
+    // Pagination
+    const page = +req.query.page || 1
+    const limit = +req.query.limit || process.env.LIMIT_PRODUCTS
+    const skip = (page -1) * limit
+    queryCommand.skip(skip).limit(limit)
 
     queryCommand.exec(async(err, response) => { 
         if (err) throw new Error(err.message)
@@ -42,7 +65,7 @@ const getProducts = asyncHandler(async(req, res) => {
             success: response ? true : false,
             products : response ? response : 'Cannot get products',
             counts
-        }) 
+        })  
     })
 })
 const updateProduct = asyncHandler(async(req, res) => { 
