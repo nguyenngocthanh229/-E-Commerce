@@ -57,17 +57,20 @@ const getProducts = asyncHandler(async(req, res) => {
     const limit = +req.query.limit || process.env.LIMIT_PRODUCTS
     const skip = (page -1) * limit
     queryCommand.skip(skip).limit(limit)
-
-    queryCommand.exec(async(err, response) => { 
-        if (err) throw new Error(err.message)
-        const counts = await Product.find(formatedQueries).countDocuments()
+       //
+       try {
+        const response = await queryCommand.exec();
+        const counts = await Product.find(formatedQueries).countDocuments();
         return res.status(200).json({
-            success: response ? true : false,
-            products : response ? response : 'Cannot get products',
-            counts
-        })  
-    })
-})
+          success: response ? true : false,
+          counts,
+          products: response ? response : 'Cannot get products',
+        });
+      } catch (error) {
+        throw new Error(error.message);
+      }
+    }) ;
+
 const updateProduct = asyncHandler(async(req, res) => { 
     const { pid } = req.params
     if (req.body && req.body.title) req.body.slug = slugify(req.body.title)
@@ -86,12 +89,31 @@ const deleteProduct = asyncHandler(async(req, res) => {
     })
 })
 
+const ratings = asyncHandler(async(req, res) => { 
+    const {_id} = req.user
+    const {star, comment, pid} = req.body
+    if (!star || !pid) throw new Error('Missing inputs')
+    const ratingProduct = await Product.findById(pid)
+    const alreadyRating = ratingProduct?.ratings?.some(el => el.postedBy.some(uid => uid === _id))
+    console.log({ alreadyRating });
+    if (alreadyRating) {
+       
+    }else{
+        const response = await Product.findByIdAndUpdate(pid, {
+            $push: {ratings: {star, comment, postedBy: _id}}
+        }, {new: true})
+        console.log(response);
+    }
 
-
+    return res.status(200).json({
+        status: true
+    })
+ }) 
 module.exports = {
     createProduct,
     getProduct,
     getProducts,
     updateProduct,
-    deleteProduct
+    deleteProduct,
+    ratings
 }
