@@ -32,6 +32,7 @@ const deleteCategory = asyncHandler(async(req, res) => {
     })
 })
 
+// update 
 
 
  module.exports = {
