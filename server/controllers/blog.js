@@ -32,9 +32,9 @@ Khi người dùng like một bài blog thì:
 1. Check xem người đó trước đó có dislike hay không => bỏ dislike
 2. Check xem người đó trước đó có like hay không => bỏ like / thêm like
  */
-const likeBlog = asyncHandler(async() => { 
+const likeBlog = asyncHandler(async(req, res) => { 
    const {_id} = req.user
-   const {bid} = req.body
+   const {bid} = req.params
    if (!bid) throw new Error('Missing inputs')
    const blog = await Blog.findById(bid)
    const alreadyDisliked = blog?.dislikes?.find(el => el.toString() === _id)
@@ -60,10 +60,39 @@ const likeBlog = asyncHandler(async() => {
        })
    }
  })
+ const dislikeBlog = asyncHandler(async(req, res) => { 
+    const {_id} = req.user
+    const {bid} = req.params
+    if (!bid) throw new Error('Missing inputs')
+    const blog = await Blog.findById(bid)
+    const alreadyLiked = blog?.likes?.find(el => el.toString() === _id)
+    if (alreadyLiked){
+        const response = await Blog.findByIdAndUpdate(bid, {$pull: {likes: _id}}, {new: true})
+        return res.json({
+         success: response ? true: false,
+         rs: response
+        })
+    }
+    const isDisliked = blog?.dislikes?.find(el => el.toString() === _id)
+    if (isDisliked){
+     const response = await Blog.findByIdAndUpdate(bid, {$pull: {dislikes: _id}}, {new: true})
+     return res.json({
+         success: response ? true: false,
+         rs: response
+        })
+    }else{
+        const response = await Blog.findByIdAndUpdate(bid, {$push: {dislikes: _id}}, {new: true})
+        return res.json({
+         success: response ? true: false,
+         rs: response
+        })
+    }
+  })
 
 module.exports = {
     createNewBlog,
     updateBlog,
     getBlogs,
-    likeBlog
+    likeBlog,
+    dislikeBlog
 }
