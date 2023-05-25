@@ -88,11 +88,21 @@ const likeBlog = asyncHandler(async(req, res) => {
         })
     }
   })
+const excludeFields = '-refreshToken -password -role -createAt -updatedAt'
+const getBlog = asyncHandler(async(req, res) => { 
+    const {bid} = req.params
+    const blog = await Blog.findById(bid).populate('likes', excludeFields)
+    return res.json({
+        success: blog ? true: false,
+        rs: blog
+       })
+ })
 
 module.exports = {
     createNewBlog,
     updateBlog,
     getBlogs,
     likeBlog,
-    dislikeBlog
+    dislikeBlog,
+    getBlog
 }
